@@ -1,0 +1,10 @@
+# https://git-scm.com/docs/gitattributes
+# https://github.com/github-linguist/linguist/blob/master/docs/overrides.md#generated-code
+# 'linguist' is the program used by github to classify files/code in your project
+# they want you to mark non-code resources to exclude them
+
+
+# mark as generated; excludes it from stats and diffs
+CSV/* linguist-generated
+JSON/* linguist-generated
+
