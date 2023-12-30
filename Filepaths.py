@@ -6,6 +6,7 @@ from collections import namedtuple
 # note that 'field_names' can specified with a single comma-seperated string
 # https://docs.python.org/3/library/collections.html#collections.namedtuple
 
+import more_itertools as itertool
 
 class SearchFlags:
     Excludes = namedtuple(
@@ -88,6 +89,12 @@ def CheckRequiredFolders(topdirs=toplevel_dirs, cwDir=pathlib.Path.cwd()):
             if not subpath.exists(): subpath.mkdir()
             # handle more deeply-nested paths somehow
 
+# alternative collapse function if you don't have itertools
+def altcollapse(*args):
+    return [result for mid in args for
+            result in (altcollapse(*mid)
+                       if isinstance(mid, (tuple, list)) else (mid,))]
+
 
 # chooses a folder to search
 # TODO: make the path-searching logic not ridiculous
@@ -102,34 +109,50 @@ def GlobSearch(glob="*", path="", opt=DefaultFiletypes):
         for toplevel, children in subfolders.items()
     ] if fext == "ALL" else [pathlib.Path(fext), *(pathlib.Path(f"{fext}/{child}") for child in subdirs)]
     derglob = f'*.{fext.lower()}' if fext != "ALL" else "*"
-    # getting trolled so hard here
-    # it's a list of tuples
-    # DOES NOT UNPACK = [match_subfolders[index] for index in range(len(match_subfolders))]
-    # for some reason it needs a tuple if it's not all, and vice versa
-    unpacked = [path for index in range(len(match_subfolders)) for path in match_subfolders[index]]  if fext == "ALL" \
-        else [path for index in range(len(match_subfolders)) for path in (match_subfolders[index],)]
-    results = [file for path in unpacked for file in path.glob(derglob)]
-    return results
+    # return altcollapse(match_subfolders)
+    return [file for path in itertool.collapse(match_subfolders) for file in path.glob(derglob)]
 
 
 # TODO: finish this
 def CreateTestfiles(): pass
     #for stuff in subfolders
 
+import pprint
 
 if __name__ == "__main__":
     printdefaultflags()
-    result = [
+    globresults = list(itertool.collapse([
         GlobSearch(opt=SearchFlags.Filetypes(derivepath=True, extension="json")),
         GlobSearch(opt=SearchFlags.Filetypes(derivepath=True, extension="csv")),
         GlobSearch(opt=SearchFlags.Filetypes(derivepath=False)),
-    ] #clean_names = [path if path.is_file() else str(path)+ '/' for path in result]
-    #clean_names = [path.name if path.is_file() else str(path)+ '/' for path in result]
-    for filelist in result:
-        for foldername in filter(lambda x: x.is_dir(), filelist):
-            print('\n', foldername.absolute())
-            for filename in filter(lambda x: x.is_file() and (x.parent == foldername), filelist):
-                print(filename.name)
+    ]))
+    # keys and values are stored as pathlib objects
+    parents = dict.fromkeys([pathlib.Path(name) for name in toplevel_dirs if pathlib.Path(name).exists()])
+    for key, value in parents.items():
+        parents[key] = [] # python is retarded and gives every item a reference to a single list,
+        # if you construct the dict with a list as a default value. so we have to do this manually.
+
+    for folder in filter(lambda x: x.is_dir(), globresults):
+        parents[folder.parent].append(folder)
+        parents[folder] = []
+    for file in filter(lambda x: x.is_file(), globresults):
+        parents[file.parent].append(file)
+
+    for folder, filelist in parents.items():
+        print('\n','/',folder,'/')
+        for path in filelist:
+            print('  ', path.name)
+
+
+    print('\n')
+    pprint.pprint(parents)
     print('\n')
 
+    print(altcollapse(globresults))
+    print('\n')
+    print(*itertool.collapse(globresults))
+    print('\n')
+
+    #print(result)
+    print('\n')
     TestFileSearch()
