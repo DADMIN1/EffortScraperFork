@@ -6,4 +6,5 @@ __pycache__/
 CSV/
 JSON/
 **.log
+.run/
 
