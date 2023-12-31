@@ -7,4 +7,5 @@ CSV/
 JSON/
 **.log
 .run/
-
+teamdata/
+savedsources/
